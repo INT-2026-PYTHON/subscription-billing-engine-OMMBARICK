@@ -18,16 +18,34 @@ from billing_engine.taxes.base import TaxCalculator, TaxContext, TaxBreakdown
 
 class GSTCalculator(TaxCalculator):
     def __init__(self, cgst: Decimal, sgst: Decimal, igst: Decimal) -> None:
-        # TODO Day 1
-        #   - Validate each rate is Decimal in [0, 1].
-        #   - Validate cgst + sgst == igst (sanity check on Indian GST setup).
-        #   - Store on self.
-        raise NotImplementedError("Day 1: implement GSTCalculator.__init__")
+        for rate, name in [(cgst, "cgst_rate"),(sgst, "sgst_rate"),(igst,"igst_rate")]:
+            if isinstance(rate,float):
+                raise TypeError(f"{name} must be decimal not a float")
+            if  not isinstance(rate,Decimal):
+                raise TypeError(f"{name} must be a decimal")
+
+            if  rate<Decimal('0') or rate>Decimal('1'):
+                raise ValueError(f"{name} must be between 0 and 1")
+        
+        if cgst+sgst!=igst:
+            raise ValueError("cgst_rate+sgst_rate must equal igst_rate")
+        self.cgst_rate=cgst
+        self.sgst_rate=sgst
+        self.igst_rate=igst
+
 
     def apply(self, taxable: Money, context: TaxContext) -> TaxBreakdown:
-        # TODO Day 1
-        #   - Decide intra vs inter-state from context.
-        #     intra = bool(context.customer_state) and context.customer_state == context.seller_state
-        #   - If intra: components = [("CGST X%", taxable*cgst), ("SGST Y%", taxable*sgst)], total = sum
-        #   - Else:     components = [("IGST Z%", taxable*igst)],                            total = igst leg
-        raise NotImplementedError("Day 1: implement GSTCalculator.apply")
+        intra= context.customer_state==context.seller_state
+        if intra:
+            cgst_amount=taxable*self.cgst_rate
+            sgst_amount=taxable*self.sgst_rate
+            cgst_pct=self.cgst_rate*Decimal('100')
+            sgst_pct=self.sgst_rate*Decimal('100')
+            components=[("cgst"+str(cgst_pct)+"%",cgst_amount),("sgst"+str(sgst_pct)+"%",sgst_amount)]
+            total_tax=cgst_amount+sgst_amount
+        else:
+            igst_amount=taxable*self.igst_rate
+            igst_pct=self.igst_rate*Decimal('100')
+            components=[("igst"+str(igst_pct)+ "%",igst_amount)]
+            total_tax=igst_amount
+        return TaxBreakdown(components=components,total=total_tax)

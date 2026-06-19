@@ -54,3 +54,6 @@ class Database:
             raise
         finally:
             conn.close()
+    
+    def close(self):
+        self.connection.close()

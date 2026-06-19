@@ -33,8 +33,18 @@ def db() -> Database:
     os.close(fd)
     database = Database(path)
     database.init_schema()
-    yield database
-    Path(path).unlink(missing_ok=True)
+    try:
+        yield database
+    finally:
+        del database
+        import time
+        time.sleep(0.2)
+        try:
+            Path(path).unlink(missing_ok=True)
+        except PermissionError:
+            pass
+
+        
 
 
 # ----------------------------------------------------------------
